@@ -1,9 +1,6 @@
-# Fixed amount each player needs to pay to the Contract
-gameFee : uint256
-player1 : address
-player2 : address
-p1_hash : bytes32
-p2_hash : bytes32
+# Authors : 
+# Hitesh Kaushik : 2018201057
+# Ankit Pant : 2018201035
 
 ######################
 # Game Structure
@@ -14,13 +11,37 @@ p2_hash : bytes32
 # 4 : Scissor
 ######################
 
+Player : 
+{
+    playerAddr : address,
+    playerHash: bytes32
+}
+
+participants : Player[2] # Holds information about players
+gameFee : uint256 # Fee that each player needs to pay
+reward : uint256 # Reward that the winner will receive
+
+
 @public
 def __init__():
-    # Initialise game fee
     self.gameFee = 5
-
+    self.reward = 2 * self.gameFee
+    
+def handleFee():
+    if(msg.value - self.gameFee >= 0):
+        send(msg.sender, msg.value - self.gameFee)
+        return True
+    else:
+        send(msg.sender, msg.value)
+        return False
+        
+@public
+@payable
 def register():
-    # Check if the amount paid by the player equals game fee.
+    assert(handleFee(), "Insufficient Fee Paid")
+    assert(registered(), "Player Already Registered")
     # Check whether the player is already registered.
     # Register the player
     pass
+
+def play(choice : ):
