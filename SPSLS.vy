@@ -1,47 +1,25 @@
-# Authors : 
-# Hitesh Kaushik : 2018201057
-# Ankit Pant : 2018201035
-
-######################
-# Game Structure
-# 0 : Rock
-# 1 : Spock
-# 2 : Paper
-# 3 : Lizard
-# 4 : Scissor
-######################
-
-Player : 
-{
-    playerAddr : address,
+struct Player:
+    playerAddr: address
     playerHash: bytes32
-}
-
-participants : Player[2] # Holds information about players
-gameFee : uint256 # Fee that each player needs to pay
-reward : uint256 # Reward that the winner will receive
-
+    playerChoice: uint256
+    playerPayout: uint256
+    
+    
+gameFee: public(uint256)
+players: public(uint256)
+participants: Player[2]
 
 @public
-def __init__():
-    self.gameFee = 5
-    self.reward = 2 * self.gameFee
+def __init__(b: uint256):
+    self.gameFee = b
+    self.players = 0
     
-def handleFee():
-    if(msg.value - self.gameFee >= 0):
-        send(msg.sender, msg.value - self.gameFee)
-        return True
-    else:
-        send(msg.sender, msg.value)
-        return False
-        
 @public
 @payable
 def register():
-    assert(handleFee(), "Insufficient Fee Paid")
-    assert(registered(), "Player Already Registered")
-    # Check whether the player is already registered.
-    # Register the player
-    pass
-
-def play(choice : ):
+    if self.players <2:
+        self.participants[self.players].playerAddr = msg.sender
+        self.players += 1
+    assert msg.value >= self.gameFee
+    if msg.value > self.gameFee:
+        send(msg.sender, msg.value-self.gameFee)
