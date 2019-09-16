@@ -51,13 +51,9 @@ def get_fee() -> wei_value:
 
 @public
 @constant
-def get_owner_addr() -> address:
-    return self.owner_address
+def get_payable_amount(addr: address) -> wei_value:
+    return self.playerPayout[addr]
 
-@public
-@constant
-def get_fee() -> wei_value:
-    return self.gameFee
 
 # @payable
 @private
