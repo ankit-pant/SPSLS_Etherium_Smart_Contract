@@ -83,7 +83,7 @@ def register():
         send(msg.sender, msg.value)
     else:
         is_valid: bool = self.check_validity(msg.sender, msg.value)
-        assert is_valid, "Insufficient Fee Paid or Game is already Full"
+        # assert is_valid, "Insufficient Fee Paid or Game is already Full"
         self.participants[self.num_players % 2].playerAddr = msg.sender
         self.num_players += 1
         if msg.value > self.gameFee:

@@ -54,6 +54,13 @@ def get_fee() -> wei_value:
 def get_payable_amount(addr: address) -> wei_value:
     return self.playerPayout[addr]
 
+@public
+@constant
+def get_number_players() -> uint256:
+    return self.num_players
+
+
+
 
 # @payable
 @private
@@ -83,11 +90,12 @@ def register():
         send(msg.sender, msg.value)
     else:
         is_valid: bool = self.check_validity(msg.sender, msg.value)
-        assert is_valid, "Insufficient Fee Paid or Game is already Full"
-        self.participants[self.num_players % 2].playerAddr = msg.sender
-        self.num_players += 1
-        if msg.value > self.gameFee:
-            self.playerPayout[msg.sender] += msg.value - self.gameFee
+        if is_valid:
+            # assert is_valid, "Insufficient Fee Paid or Game is already Full"
+            self.participants[self.num_players % 2].playerAddr = msg.sender
+            self.num_players += 1
+            if msg.value > self.gameFee:
+                self.playerPayout[msg.sender] += msg.value - self.gameFee
         
 @public
 def human_opponent(oppn: bool):

@@ -16,16 +16,14 @@ contract("SPSLS", (accounts) => {
         player1_addr = accounts[1];
         player2_addr = accounts[2];
         player3_addr = accounts[3];
-        // spsobj.sendTransaction(p1_fee, {from: player1_addr});
-        // assert.equal(50,payout.toNumber(),"Payout is not same");
-        // spsobj.address = player1_addr;
-        // spsobj.value = p1_fee;
-        const reg = await spsobj.register.call({from: player3_addr, to: spsobj.address, value:3000000000000000000});
-        assert.equal(true,reg,"Unsuccessful Registration")
-        // const pay = await spsobj.get_payable_amount(player3_addr,{from:player3_addr,to:spsobj.address})
-        // assert.equal(1000000000000000000,pay,"Payouts don't match")
-        // reg = await spsobj.check_registrations(player3_addr,{from: player3_addr, to: spsobj.address});
-        // assert.equal(true,reg, "Player 1 has not registered");
+        const reg = await spsobj.register({from: player3_addr, to: spsobj.address, value:3000000000000000000});
+        // assert.equal(true,reg,"Unsuccessful Registration")
+        is_reg =  await spsobj.check_registrations.call(player3_addr,{from:player3_addr, to:spsobj.address});
+        assert.equal(true,is_reg)
+        const pay = await spsobj.get_payable_amount.call(player3_addr,{from:player3_addr,to:spsobj.address});
+        assert.equal(1000000000000000000,pay,"Payouts don't match")
+        regis = await spsobj.check_registrations.call(player3_addr,{from: player3_addr, to: spsobj.address});
+        assert.equal(true,regis, "Player 3 has not registered");
 
         // tx = instance.sendTransaction({from: accounts[4], to: instance.address, value: 200000000000000000})
     });
@@ -33,8 +31,9 @@ contract("SPSLS", (accounts) => {
     it("... should not register if fee paid < game fee", async() => {
         const spsobj = await SPSLS.deployed();
         player2_addr = accounts[2];
-        const noreg = await spsobj.register.call({from: player2_addr, to: spsobj.address, value:300000});
-        assert.equal(false,noreg,"Invalid User Registered")
+        const noreg = await spsobj.register({from: player2_addr, to: spsobj.address, value:300000});
+        regis = await spsobj.check_registrations.call(player2_addr,{from: player2_addr, to: spsobj.address});
+        assert.equal(false,regis,"Invalid User Registered");
     });
     
     it("... should not register if number of players >=2", async() => {
@@ -42,11 +41,13 @@ contract("SPSLS", (accounts) => {
         player1_addr = accounts[1];
         player2_addr = accounts[2];
         player3_addr = accounts[3];
-        const reg1 = await spsobj.register.call({from: player1_addr, to: spsobj.address, value:2000000000000000000});
-        const reg2 = await spsobj.register.call({from: player2_addr, to: spsobj.address, value:2000000000000000000});
-        const reg3 = await spsobj.register.call({from: player3_addr, to: spsobj.address, value:2000000000000000000});
-        // assert.equal(false,reg3,"Invalid User Registered")
-        const num = await spsobj.num_players.call({from: player1_addr, to: spsobj.address});
-        assert.equal(3,num,"Invalid User Registered")
+        const reg1 = await spsobj.register({from: player1_addr, to: spsobj.address, value:2000000000000000000});
+        const reg2 = await spsobj.register({from: player2_addr, to: spsobj.address, value:2000000000000000000});
+        const reg3 = await spsobj.register({from: player3_addr, to: spsobj.address, value:2000000000000000000});
+        const num = await spsobj.get_number_players.call({from: player1_addr, to: spsobj.address});
+        assert.equal(2,num,"Invalid User Registered1");
+        
     });
+
+    
 });
