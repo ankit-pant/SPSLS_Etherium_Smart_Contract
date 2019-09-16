@@ -22,7 +22,7 @@ struct Player:
 gameFee: wei_value
 num_players: public(uint256)
 participants: Player[2]
-playerPayout: public(map(address, wei_value))
+playerPayout: map(address, wei_value)
 opponent: public(map(address,bool))
 winner: public(string[10])
 agent_choice: uint256
@@ -39,6 +39,12 @@ def __init__(bid: wei_value, addr: address):
     self.iter_counts = 10
 
 @public
+@payable
+def __default__():
+    pass
+
+
+@public
 @constant
 def get_owner_addr() -> address:
     return self.owner_address
@@ -47,32 +53,56 @@ def get_owner_addr() -> address:
 @constant
 def get_fee() -> wei_value:
     return self.gameFee
+    
+@public
+@constant
+def get_payable_amount(addr: address) -> wei_value:
+    return self.playerPayout[addr]
 
-# @payable
+
 @private
 def check_validity(addr: address, fee: wei_value) -> bool:
-    if(self.num_players >= 2 or fee < self.gameFee):
+    if(self.num_players > 1 or fee < self.gameFee):
         send(addr, fee)
         return False
     return True
 
 @private    
 def is_registered(addr: address) -> bool:
-    return (addr == self.participants[0].playerAddr or addr == self.participants[1].playerAddr)
-    
+    if (addr == self.participants[0].playerAddr or addr == self.participants[1].playerAddr) :
+        return True
+    else:
+        return False
+
+@public
+def check_registrations(addr: address) -> bool:
+    reg : bool = self.is_registered(addr)
+    if reg==True:
+        return True
+    else:
+        return False
+
 @public
 @payable
-def register():
-    is_valid: bool = self.is_registered(msg.sender)
-    if is_valid:
+def register() -> bool:
+    is_invalid: bool = self.is_registered(msg.sender)
+    if is_invalid == True:
         send(msg.sender, msg.value)
+        return False
     else:
-        is_valid = self.check_validity(msg.sender, msg.value)
-        assert is_valid
-        self.participants[self.num_players % 2].playerAddr = msg.sender
-        self.num_players += 1
-        if msg.value > self.gameFee:
-            self.playerPayout[msg.sender] += msg.value - self.gameFee
+        is_valid: bool = self.check_validity(msg.sender, msg.value)
+        if is_valid == True:
+            if self.num_players == 0:
+                self.participants[0].playerAddr = msg.sender
+                self.num_players += 1
+            elif self.num_players == 1:
+                self.participants[1].playerAddr = msg.sender
+                self.num_players += 1
+            if msg.value > self.gameFee:
+                self.playerPayout[msg.sender] += msg.value - self.gameFee
+            return True
+        else:
+            return False
         
 @public
 def human_opponent(oppn: bool):
