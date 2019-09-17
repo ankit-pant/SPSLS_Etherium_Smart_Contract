@@ -30,7 +30,9 @@ owner_address: address
 game_counts: uint256
 iter_counts: uint256
 revealTime: timestamp
-player1_wins: uint256
+player1_wins: public(uint256)
+player2_wins: public(uint256)
+agent_wins: public(uint256)
 revealer: uint256
 
 @public
@@ -39,7 +41,7 @@ def __init__(bid: wei_value, addr: address):
     self.num_players = 0
     self.owner_address = addr
     self.game_counts = 0
-    self.iter_counts = 5
+    self.iter_counts = 3
     self.participants[0].playerChoice = 99
     self.participants[1].playerChoice = 99
     self.revealer = 99
@@ -68,6 +70,16 @@ def get_number_players() -> uint256:
 @constant
 def get_game_count() -> uint256:
     return self.game_counts
+
+@public
+@constant
+def get_player_hash(addr:address) -> bytes32:
+    phash : bytes32
+    if addr == self.participants[0].playerAddr:
+        phash = self.participants[0].playerHash
+    elif addr == self.participants[1].playerAddr:
+        phash = self.participants[1].playerHash
+    return phash
 
 
 
@@ -118,6 +130,7 @@ def check_opponent(addr: address)->bool:
     
 @private 
 def check_winner(pl1: uint256, pl2: uint256) -> uint256:
+    self.game_counts += 1
     if (pl1+1)%5 == pl2:
         return pl2
     elif (pl1+2)%5== pl2:
@@ -125,32 +138,27 @@ def check_winner(pl1: uint256, pl2: uint256) -> uint256:
     else:
         return pl1
 
-@private
-def play_with_agent():
-    self.agent_choice = 4
-    win: uint256
-    win = self.check_winner(self.participants[0].playerChoice,self.agent_choice)
-    if win == self.participants[0].playerChoice and win == self.agent_choice:
-        self.winner = "Draw"
-    elif win== self.agent_choice:
-        self.winner = "Agent"
-    else:
-        self.winner = "Player 1"
-
 @constant
 @private
 def valid_choice(ch: uint256) -> bool:
-    return (ch >= 0 and ch <= 4)    
- 
+    return (ch >= 0 and ch <= 4)   
+
+@constant
+@public
+def check_valid_choice(ch: uint256) -> bool:
+    return self.valid_choice(ch)
 
 @private
 def gamePayout(winner_idx: uint256):
-    if winner_idx != 99:
-        send(self.participants[winner_idx].playerAddr, 2 * self.gameFee)
+    if self.num_players == 2:
+        if winner_idx != 99:
+            send(self.participants[winner_idx].playerAddr, 2 * self.gameFee)
+        else:
+            send(self.owner_address, 2 * self.gameFee)
+        send(self.participants[0].playerAddr, self.playerPayout[self.participants[0].playerAddr])
+        send(self.participants[1].playerAddr, self.playerPayout[self.participants[1].playerAddr])
     else:
-        send(self.owner_address, 2 * self.gameFee)
-    send(self.participants[0].playerAddr, self.playerPayout[self.participants[0].playerAddr])
-    send(self.participants[1].playerAddr, self.playerPayout[self.participants[1].playerAddr])
+        send(self.participants[0].playerAddr, self.playerPayout[self.participants[0].playerAddr])
     
 @private
 def reset_game():
@@ -158,90 +166,144 @@ def reset_game():
     self.playerPayout[self.participants[1].playerAddr] = 0
     self.opponent[self.participants[0].playerAddr] = False
     self.opponent[self.participants[1].playerAddr] = False
+    self.participants[0].playerChoice = 99
+    self.participants[1].playerChoice = 99
     clear(self.participants)
     clear(self.game_counts)
     clear(self.num_players)
     clear(self.winner)
     clear(self.player1_wins)
+    clear(self.player2_wins)
     clear(self.revealTime)
     clear(self.agent_choice)
     
 @public
 def check_game_winner() -> string[10]:
-    winner_idx: uint256 = 99
-    r_winner: string[10]
-    if self.game_counts == self.iter_counts - 1:
-        if self.player1_wins > 5:
-            winner_idx = 0
-            r_winner = "Player 1"
-        elif self.player1_wins < 5: 
-            winner_idx = 1
-            r_winner = "Player 2"
-        else:
-            r_winner = "Draw"
-        self.gamePayout(winner_idx)
-        self.reset_game()
-    return r_winner
+    if self.num_players == 2:
+        winner_idx: uint256 = 99
+        r_winner: string[10]
+        if self.game_counts == self.iter_counts:
+            if self.player1_wins > self.player2_wins:
+                winner_idx = 0
+                r_winner = "Player 1"
+            elif self.player1_wins < self.player2_wins:
+                winner_idx = 1
+                r_winner = "Player 2"
+            else:
+                r_winner = "Draw"
+            self.gamePayout(winner_idx)
+            self.reset_game()
+        return r_winner
+    else:
+        winner_idx: uint256 = 99
+        r_winner: string[10]
+        if self.game_counts == self.iter_counts:
+            if self.player1_wins > self.agent_wins:
+                r_winner = "Player"
+            elif self.player1_wins < self.agent_wins:
+                r_winner = "Agent"
+            else:
+                r_winner = "Draw"
+            self.gamePayout(0)
+            self.reset_game()
+        return r_winner
         
 @public
 def check_round_winner() -> string[10]:
-    if self.participants[0].playerChoice != 99 and self.participants[1].playerChoice != 99 and block.timestamp <= self.revealTime + 60:
-        win: uint256
-        win = self.check_winner(self.participants[0].playerChoice, self.participants[1].playerChoice)
-        if win == self.participants[0].playerChoice and win == self.participants[1].playerChoice:
-            return "Draw"
-        elif win == self.participants[1].playerChoice:
-            return "Player 2"
-        else:
-            self.player1_wins += 1
-            return "Player 1"
-    else:
-        if block.timestamp > self.revealTime + 60:
-            if self.revealer == 0:
-                self.player1_wins += 1
-                return "Player 1"
-            elif self.revealer == 1:
+    if self.num_players == 2:
+        if self.participants[0].playerChoice != 99 and self.participants[1].playerChoice != 99 and block.timestamp <= self.revealTime + 60:
+            win: uint256
+            win = self.check_winner(self.participants[0].playerChoice, self.participants[1].playerChoice)
+            if win == self.participants[0].playerChoice and win == self.participants[1].playerChoice:
+                self.participants[0].playerChoice = 99
+                self.participants[1].playerChoice = 99
+                return "Draw"
+            elif win == self.participants[1].playerChoice:
+                self.participants[0].playerChoice = 99
+                self.participants[1].playerChoice = 99
+                self.player2_wins += 1
                 return "Player 2"
             else:
-                return "Draw"
-        return ""
-            
+                self.player1_wins += 1
+                self.participants[0].playerChoice = 99
+                self.participants[1].playerChoice = 99
+                return "Player 1"
+        else:
+            if self.revealTime != 0 and block.timestamp > self.revealTime + 60:
+                if self.revealer == 0:
+                    self.player1_wins += 1
+                    self.participants[0].playerChoice = 99
+                    self.participants[1].playerChoice = 99
+                    return "Player 1"
+                elif self.revealer == 1:
+                    self.participants[0].playerChoice = 99
+                    self.participants[1].playerChoice = 99
+                    return "Player 2"
+                else:
+                    self.participants[0].playerChoice = 99
+                    self.participants[1].playerChoice = 99
+                    return "Draw"
+            return ""
+    else:
+        win: uint256
+        win = self.check_winner(self.participants[0].playerChoice, self.agent_choice)
+        if win == self.participants[0].playerChoice and win == self.agent_choice:
+            self.participants[0].playerChoice = 99
+            return "Draw"
+        elif win == self.agent_choice:
+            self.participants[0].playerChoice = 99
+            self.agent_wins += 1
+            return "Agent"
+        else:
+            self.player1_wins += 1
+            self.participants[0].playerChoice = 99
+            return "Player"
         
+@private
+def gen_random_choice() -> uint256:
+    temp:uint256 = ((block.number + 3142) ** 3) % 17
+    return temp % 5
+    
 @public
 def reveal(ch: uint256, nonce: uint256):
-    assert self.is_registered(msg.sender), "You are not Registered for this game"
-    assert self.valid_choice(ch), "Enter choice between 0 and 4"
-    if self.opponent[msg.sender]:
-        assert self.num_players == 2, "Opponent not registered yet"
-        hash_0: uint256 = convert(self.participants[0].playerHash, uint256)
-        hash_1: uint256 = convert(self.participants[1].playerHash, uint256)
-        assert hash_0 != 0, "Opponent's commitment not made yet"
-        assert hash_1 != 0, "Opponent's commitment not made yet"
-        newHash: bytes32 = keccak256(convert(bitwise_xor(convert(keccak256(convert(ch, bytes32)), uint256), convert(keccak256(convert(nonce, bytes32)), uint256)), bytes32))
-        playerId: uint256
-        if(msg.sender == self.participants[0].playerAddr):
-            playerId = 0
-        else:
-            playerId = 1
-        assert newHash == self.participants[playerId].playerHash, "Hash Mismatch"
-        if self.participants[0].playerChoice == 99 and self.participants[1].playerChoice == 99:
-            self.revealTime = block.timestamp
-            if msg.sender == self.participants[0].playerAddr:
-                self.revealer = 0
-            elif msg.sender == self.participants[1].playerAddr:
-                self.revealer = 1
-        self.participants[playerId].playerChoice = ch
+    if self.is_registered(msg.sender):
+        if self.valid_choice(ch):
+            if self.opponent[msg.sender]:
+                if self.num_players == 2:
+                    hash_0: uint256 = convert(self.participants[0].playerHash, uint256)
+                    hash_1: uint256 = convert(self.participants[1].playerHash, uint256)
+                    if hash_0 != 0 and hash_1 !=0:
+                        newHash: bytes32 = keccak256(convert(bitwise_xor(convert(keccak256(convert(ch, bytes32)), uint256), convert(keccak256(convert(nonce, bytes32)), uint256)), bytes32))
+                        playerId: uint256
+                        if(msg.sender == self.participants[0].playerAddr):
+                            playerId = 0
+                        else:
+                            playerId = 1
+                        if newHash == self.participants[playerId].playerHash:
+                            if self.participants[0].playerChoice == 99 and self.participants[1].playerChoice == 99:
+                                self.revealTime = block.timestamp
+                                if msg.sender == self.participants[0].playerAddr:
+                                    self.revealer = 0
+                                elif msg.sender == self.participants[1].playerAddr:
+                                    self.revealer = 1
+                            self.participants[playerId].playerChoice = ch
     else:
-        pass
-    
+        if self.num_players == 1:
+            hash_0: uint256 = convert(self.participants[0].playerHash, uint256)
+            if hash_0 != 0:
+                newHash: bytes32 = keccak256(convert(bitwise_xor(convert(keccak256(convert(ch, bytes32)), uint256), convert(keccak256(convert(nonce, bytes32)), uint256)), bytes32))
+                if newHash == self.participants[0].playerHash:
+                    self.participants[0].playerChoice = ch
+                    self.agent_choice = self.gen_random_choice()
+            
 @public 
 def play(choiceHash: bytes32):
-    assert self.is_registered(msg.sender), "You are not Registered for this game"
-    if self.game_counts < self.iter_counts:
-        if(self.opponent[msg.sender] == True):
-            if msg.sender == self.participants[0].playerAddr:
-                self.participants[0].playerHash = choiceHash
+    if self.is_registered(msg.sender):
+        if self.game_counts < self.iter_counts:
+            if(self.opponent[msg.sender] == True):
+                if msg.sender == self.participants[0].playerAddr:
+                    self.participants[0].playerHash = choiceHash
+                else:
+                    self.participants[1].playerHash = choiceHash
             else:
-                self.participants[1].playerHash = choiceHash
-        else:
-            self.participants[0].playerHash = choiceHash
+                self.participants[0].playerHash = choiceHash
