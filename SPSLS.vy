@@ -41,7 +41,7 @@ def __init__(bid: wei_value, addr: address):
     self.num_players = 0
     self.owner_address = addr
     self.game_counts = 0
-    self.iter_counts = 3
+    self.iter_counts = 10
     self.participants[0].playerChoice = 99
     self.participants[1].playerChoice = 99
     self.revealer = 99
@@ -73,6 +73,11 @@ def get_game_count() -> uint256:
 
 @public
 @constant
+def get_agent_choice() -> uint256:
+    return self.agent_choice
+
+@public
+@constant
 def get_player_hash(addr:address) -> bytes32:
     phash : bytes32
     if addr == self.participants[0].playerAddr:
@@ -83,7 +88,6 @@ def get_player_hash(addr:address) -> bytes32:
 
 
 
-# @payable
 @private
 def check_validity(addr: address, fee: wei_value) -> bool:
     if(self.num_players >= 2 or fee < self.gameFee):
@@ -287,14 +291,14 @@ def reveal(ch: uint256, nonce: uint256):
                                 elif msg.sender == self.participants[1].playerAddr:
                                     self.revealer = 1
                             self.participants[playerId].playerChoice = ch
-    else:
-        if self.num_players == 1:
-            hash_0: uint256 = convert(self.participants[0].playerHash, uint256)
-            if hash_0 != 0:
-                newHash: bytes32 = keccak256(convert(bitwise_xor(convert(keccak256(convert(ch, bytes32)), uint256), convert(keccak256(convert(nonce, bytes32)), uint256)), bytes32))
-                if newHash == self.participants[0].playerHash:
-                    self.participants[0].playerChoice = ch
-                    self.agent_choice = self.gen_random_choice()
+            else:
+                if self.num_players == 1:
+                    hash_0: uint256 = convert(self.participants[0].playerHash, uint256)
+                    if hash_0 != 0:
+                        newHash: bytes32 = keccak256(convert(bitwise_xor(convert(keccak256(convert(ch, bytes32)), uint256), convert(keccak256(convert(nonce, bytes32)), uint256)), bytes32))
+                        if newHash == self.participants[0].playerHash:
+                            self.participants[0].playerChoice = ch
+                            self.agent_choice = self.gen_random_choice()
             
 @public 
 def play(choiceHash: bytes32):
